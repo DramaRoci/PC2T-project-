@@ -1,0 +1,32 @@
+package app;
+public enum CooperationLevel {
+    BAD,
+    AVERAGE,
+    GOOD;
+
+    public static CooperationLevel fromInt(int value) {
+        switch (value) {
+            case 0:
+                return BAD;
+            case 1:
+                return AVERAGE;
+            case 2:
+                return GOOD;
+            default:
+                throw new IllegalArgumentException("Invalid cooperation level.");
+        }
+    }
+
+    public double toNumericValue() {
+        switch (this) {
+            case BAD:
+                return 0.0;
+            case AVERAGE:
+                return 1.0;
+            case GOOD:
+                return 2.0;
+            default:
+                return 0.0;
+        }
+    }
+}
