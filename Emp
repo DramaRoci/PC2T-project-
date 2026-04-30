@@ -1,0 +1,101 @@
+package app;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+public abstract class Employee {
+    protected int id;
+    protected String firstName;
+    protected String lastName;
+    protected int birthYear;
+    protected List<Cooperation> cooperations;
+
+    public Employee(int id, String firstName, String lastName, int birthYear) {
+        this.id = id;
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.birthYear = birthYear;
+        this.cooperations = new ArrayList<>();
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public int getBirthYear() {
+        return birthYear;
+    }
+
+    public List<Cooperation> getCooperations() {
+        return cooperations;
+    }
+
+    public void addCooperation(int colleagueId, CooperationLevel level) {
+        for (Cooperation cooperation : cooperations) {
+            if (cooperation.getColleagueId() == colleagueId) {
+                cooperation.setLevel(level);
+                return;
+            }
+        }
+        cooperations.add(new Cooperation(colleagueId, level));
+    }
+
+    public void removeCooperationWith(int colleagueId) {
+        cooperations.removeIf(c -> c.getColleagueId() == colleagueId);
+    }
+
+    public int getCooperationCount() {
+        return cooperations.size();
+    }
+
+    public double getAverageCooperationScore() {
+        if (cooperations.isEmpty()) {
+            return 0.0;
+        }
+
+        double sum = 0.0;
+        for (Cooperation cooperation : cooperations) {
+            sum += cooperation.getLevel().toNumericValue();
+        }
+        return sum / cooperations.size();
+    }
+
+    public void printBasicInfo() {
+        System.out.println("ID: " + id);
+        System.out.println("First name: " + firstName);
+        System.out.println("Last name: " + lastName);
+        System.out.println("Birth year: " + birthYear);
+        System.out.println("Group: " + getGroupName());
+        System.out.println("Number of cooperations: " + getCooperationCount());
+        System.out.printf("Average cooperation quality: %.2f%n", getAverageCooperationScore());
+    }
+
+    public String serialize() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(getGroupName()).append(";");
+        sb.append(id).append(";");
+        sb.append(firstName).append(";");
+        sb.append(lastName).append(";");
+        sb.append(birthYear).append(";");
+        sb.append(cooperations.size());
+
+        for (Cooperation cooperation : cooperations) {
+            sb.append(";").append(cooperation.toString());
+        }
+
+        return sb.toString();
+    }
+
+    public abstract String getGroupName();
+
+    public abstract void useSkill(Map<Integer, Employee> employeeMap);
+}
