@@ -1,0 +1,33 @@
+package app;
+
+import java.util.Map;
+
+public class SecuritySpecialist extends Employee {
+
+    public SecuritySpecialist(int id, String firstName, String lastName, int birthYear) {
+        super(id, firstName, lastName, birthYear);
+    }
+
+    @Override
+    public String getGroupName() {
+        return "SecuritySpecialist";
+    }
+
+    @Override
+    public void useSkill(Map<Integer, Employee> employeeMap) {
+        int count = getCooperationCount();
+        double avg = getAverageCooperationScore();
+
+        double riskScore = count * (2.0 - avg);
+
+        System.out.printf("Risk score: %.2f%n", riskScore);
+
+        if (riskScore < 2.0) {
+            System.out.println("Risk level: LOW");
+        } else if (riskScore < 5.0) {
+            System.out.println("Risk level: MEDIUM");
+        } else {
+            System.out.println("Risk level: HIGH");
+        }
+    }
+}
