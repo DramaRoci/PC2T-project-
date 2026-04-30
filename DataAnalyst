@@ -1,0 +1,60 @@
+package app;
+
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+public class DataAnalyst extends Employee {
+
+    public DataAnalyst(int id, String firstName, String lastName, int birthYear) {
+        super(id, firstName, lastName, birthYear);
+    }
+
+    @Override
+    public String getGroupName() {
+        return "DataAnalyst";
+    }
+
+    @Override
+    public void useSkill(Map<Integer, Employee> employeeMap) {
+        if (cooperations.isEmpty()) {
+            System.out.println("This employee has no cooperations.");
+            return;
+        }
+
+        int bestColleagueId = -1;
+        int maxCommon = -1;
+
+        Set<Integer> myColleagues = new HashSet<>();
+        for (Cooperation c : cooperations) {
+            myColleagues.add(c.getColleagueId());
+        }
+
+        for (Cooperation c : cooperations) {
+            Employee colleague = employeeMap.get(c.getColleagueId());
+            if (colleague == null) {
+                continue;
+            }
+
+            int commonCount = 0;
+            for (Cooperation colleagueCoop : colleague.getCooperations()) {
+                int commonId = colleagueCoop.getColleagueId();
+                if (commonId != this.id && myColleagues.contains(commonId)) {
+                    commonCount++;
+                }
+            }
+
+            if (commonCount > maxCommon) {
+                maxCommon = commonCount;
+                bestColleagueId = colleague.getId();
+            }
+        }
+
+        if (bestColleagueId == -1) {
+            System.out.println("No suitable colleague found.");
+        } else {
+            System.out.println("Colleague with the highest number of common cooperators: ID "
+                    + bestColleagueId + " (" + maxCommon + " common cooperators)");
+        }
+    }
+}
