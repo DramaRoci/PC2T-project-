@@ -1,101 +1,418 @@
 package app;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public abstract class Employee {
-    protected int id;
-    protected String firstName;
-    protected String lastName;
-    protected int birthYear;
-    protected List<Cooperation> cooperations;
+public class EmployeeDatabase {
+    private List<Employee> employees;
+    private int nextId;
 
-    public Employee(int id, String firstName, String lastName, int birthYear) {
-        this.id = id;
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.birthYear = birthYear;
-        this.cooperations = new ArrayList<>();
+    public EmployeeDatabase() {
+        employees = new ArrayList<>();
+        nextId = 1;
     }
 
-    public int getId() {
-        return id;
+    public void addEmployee(int type, String firstName, String lastName, int birthYear) {
+        Employee employee;
+
+        if (type == 1) {
+            employee = new DataAnalyst(nextId, firstName, lastName, birthYear);
+        } else if (type == 2) {
+            employee = new SecuritySpecialist(nextId, firstName, lastName, birthYear);
+        } else {
+            System.out.println("Invalid employee type.");
+            return;
+        }
+
+        employees.add(employee);
+        System.out.println("Employee added with ID: " + nextId);
+        nextId++;
     }
 
-    public String getFirstName() {
-        return firstName;
-    }
-
-    public String getLastName() {
-        return lastName;
-    }
-
-    public int getBirthYear() {
-        return birthYear;
-    }
-
-    public List<Cooperation> getCooperations() {
-        return cooperations;
-    }
-
-    public void addCooperation(int colleagueId, CooperationLevel level) {
-        for (Cooperation cooperation : cooperations) {
-            if (cooperation.getColleagueId() == colleagueId) {
-                cooperation.setLevel(level);
-                return;
+    public Employee findEmployeeById(int id) {
+        for (Employee employee : employees) {
+            if (employee.getId() == id) {
+                return employee;
             }
         }
-        cooperations.add(new Cooperation(colleagueId, level));
+        return null;
     }
 
-    public void removeCooperationWith(int colleagueId) {
-        cooperations.removeIf(c -> c.getColleagueId() == colleagueId);
+    public Map<Integer, Employee> buildEmployeeMap() {
+        Map<Integer, Employee> map = new HashMap<>();
+        for (Employee employee : employees) {
+            map.put(employee.getId(), employee);
+        }
+        return map;
     }
 
-    public int getCooperationCount() {
-        return cooperations.size();
-    }
-
-    public double getAverageCooperationScore() {
-        if (cooperations.isEmpty()) {
-            return 0.0;
+    public void addCooperation(int id1, int id2, CooperationLevel level) {
+        if (id1 == id2) {
+            System.out.println("Employee cannot cooperate with themselves.");
+            return;
         }
 
-        double sum = 0.0;
-        for (Cooperation cooperation : cooperations) {
-            sum += cooperation.getLevel().toNumericValue();
-        }
-        return sum / cooperations.size();
-    }
+        Employee e1 = findEmployeeById(id1);
+        Employee e2 = findEmployeeById(id2);
 
-    public void printBasicInfo() {
-        System.out.println("ID: " + id);
-        System.out.println("First name: " + firstName);
-        System.out.println("Last name: " + lastName);
-        System.out.println("Birth year: " + birthYear);
-        System.out.println("Group: " + getGroupName());
-        System.out.println("Number of cooperations: " + getCooperationCount());
-        System.out.printf("Average cooperation quality: %.2f%n", getAverageCooperationScore());
-    }
-
-    public String serialize() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(getGroupName()).append(";");
-        sb.append(id).append(";");
-        sb.append(firstName).append(";");
-        sb.append(lastName).append(";");
-        sb.append(birthYear).append(";");
-        sb.append(cooperations.size());
-
-        for (Cooperation cooperation : cooperations) {
-            sb.append(";").append(cooperation.toString());
+        if (e1 == null || e2 == null) {
+            System.out.println("One or both employees do not exist.");
+            return;
         }
 
-        return sb.toString();
+        e1.addCooperation(id2, level);
+        e2.addCooperation(id1, level);
+
+        System.out.println("Cooperation added successfully.");
     }
 
-    public abstract String getGroupName();
+    public void removeEmployee(int id) {
+        Employee employee = findEmployeeById(id);
 
-    public abstract void useSkill(Map<Integer, Employee> employeeMap);
+        if (employee == null) {
+            System.out.println("Employee not found.");
+            return;
+        }
+
+        for (Employee e : employees) {
+            e.removeCooperationWith(id);
+        }
+
+        employees.remove(employee);
+        System.out.println("Employee removed successfully.");
+    }
+
+    public void printEmployeeById(int id) {
+        Employee employee = findEmployeeById(id);
+
+        if (employee == null) {
+            System.out.println("Employee not found.");
+            return;
+        }
+
+        employee.printBasicInfo();
+    }
+
+    public void runEmployeeSkill(int id) {
+        Employee employee = findEmployeeById(id);
+
+        if (employee == null) {
+            System.out.println("Employee not found.");
+            return;
+        }
+
+        employee.useSkill(buildEmployeeMap());
+    }
+
+    public void printAlphabeticallyByGroups() {
+        List<Employee> analysts = new ArrayList<>();
+        List<Employee> specialists = new ArrayList<>();
+
+        for (Employee employee : employees) {
+            if (employee instanceof DataAnalyst) {
+                analysts.add(employee);
+            } else if (employee instanceof SecuritySpecialist) {
+                specialists.add(employee);
+            }
+        }
+
+        Comparator<Employee> byLastName = Comparator.comparing(Employee::getLastName)
+                .thenComparing(Employee::getFirstName);
+
+        analysts.sort(byLastName);
+        specialists.sort(byLastName);
+
+        System.out.println("\n=== DATA ANALYSTS ===");
+        for (Employee e : analysts) {
+            System.out.println(e.getLastName() + " " + e.getFirstName() + " (ID: " + e.getId() + ")");
+        }
+
+        System.out.println("\n=== SECURITY SPECIALISTS ===");
+        for (Employee e : specialists) {
+            System.out.println(e.getLastName() + " " + e.getFirstName() + " (ID: " + e.getId() + ")");
+        }
+    }
+
+    public void printStatistics() {
+        int bad = 0;
+        int average = 0;
+        int good = 0;
+
+        Employee maxEmployee = null;
+
+        for (Employee employee : employees) {
+            for (Cooperation cooperation : employee.getCooperations()) {
+                switch (cooperation.getLevel()) {
+                    case BAD:
+                        bad++;
+                        break;
+                    case AVERAGE:
+                        average++;
+                        break;
+                    case GOOD:
+                        good++;
+                        break;
+                }
+            }
+
+            if (maxEmployee == null || employee.getCooperationCount() > maxEmployee.getCooperationCount()) {
+                maxEmployee = employee;
+            }
+        }
+
+        System.out.println("\n=== STATISTICS ===");
+
+        if (bad == 0 && average == 0 && good == 0) {
+            System.out.println("No cooperation data available.");
+        } else {
+            if (bad >= average && bad >= good) {
+                System.out.println("Dominant cooperation quality: BAD");
+            } else if (average >= bad && average >= good) {
+                System.out.println("Dominant cooperation quality: AVERAGE");
+            } else {
+                System.out.println("Dominant cooperation quality: GOOD");
+            }
+        }
+
+        if (maxEmployee != null) {
+            System.out.println("Employee with the most cooperations: "
+                    + maxEmployee.getFirstName() + " " + maxEmployee.getLastName()
+                    + " (ID: " + maxEmployee.getId() + ")");
+        }
+    }
+
+    public void printGroupCounts() {
+        int analysts = 0;
+        int specialists = 0;
+
+        for (Employee employee : employees) {
+            if (employee instanceof DataAnalyst) {
+                analysts++;
+            } else if (employee instanceof SecuritySpecialist) {
+                specialists++;
+            }
+        }
+
+        System.out.println("Data analysts: " + analysts);
+        System.out.println("Security specialists: " + specialists);
+    }
+
+    public void saveOneEmployeeToFile(int id, String fileName) {
+        Employee employee = findEmployeeById(id);
+
+        if (employee == null) {
+            System.out.println("Employee not found.");
+            return;
+        }
+
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
+            writer.write(employee.serialize());
+            writer.newLine();
+            System.out.println("Employee saved to file.");
+        } catch (IOException e) {
+            System.out.println("Error while saving employee to file.");
+        }
+    }
+
+    public void saveAllToFile(String fileName) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
+            for (Employee employee : employees) {
+                writer.write(employee.serialize());
+                writer.newLine();
+            }
+            System.out.println("All data saved to text file.");
+        } catch (IOException e) {
+            System.out.println("Error while saving data to text file.");
+        }
+    }
+
+    public void loadAllFromFile(String fileName) {
+        employees.clear();
+        nextId = 1;
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(fileName))) {
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(";");
+                if (parts.length < 6) {
+                    continue;
+                }
+
+                String group = parts[0];
+                int id = Integer.parseInt(parts[1]);
+                String firstName = parts[2];
+                String lastName = parts[3];
+                int birthYear = Integer.parseInt(parts[4]);
+                int cooperationCount = Integer.parseInt(parts[5]);
+
+                Employee employee = null;
+
+                if (group.equals("DataAnalyst")) {
+                    employee = new DataAnalyst(id, firstName, lastName, birthYear);
+                } else if (group.equals("SecuritySpecialist")) {
+                    employee = new SecuritySpecialist(id, firstName, lastName, birthYear);
+                }
+
+                if (employee == null) {
+                    continue;
+                }
+
+                for (int i = 0; i < cooperationCount; i++) {
+                    int index = 6 + i;
+                    if (index >= parts.length) {
+                        break;
+                    }
+
+                    String[] coopData = parts[index].split(",");
+                    if (coopData.length != 2) {
+                        continue;
+                    }
+
+                    int colleagueId = Integer.parseInt(coopData[0]);
+                    CooperationLevel level = CooperationLevel.valueOf(coopData[1]);
+                    employee.addCooperation(colleagueId, level);
+                }
+
+                employees.add(employee);
+
+                if (id >= nextId) {
+                    nextId = id + 1;
+                }
+            }
+
+            System.out.println("Data loaded from text file.");
+        } catch (IOException e) {
+            System.out.println("Text file not found or could not be loaded.");
+        }
+    }
+
+    public void saveAllToSQL() {
+        String deleteCooperations = "DELETE FROM cooperations";
+        String deleteEmployees = "DELETE FROM employees";
+
+        String insertEmployee = "INSERT INTO employees (id, first_name, last_name, birth_year, group_name) VALUES (?, ?, ?, ?, ?)";
+        String insertCooperation = "INSERT INTO cooperations (employee_id, colleague_id, level) VALUES (?, ?, ?)";
+
+        try (Connection conn = DatabaseManager.connect()) {
+            conn.setAutoCommit(false);
+
+            try (PreparedStatement deleteCoopStmt = conn.prepareStatement(deleteCooperations);
+                 PreparedStatement deleteEmpStmt = conn.prepareStatement(deleteEmployees);
+                 PreparedStatement insertEmpStmt = conn.prepareStatement(insertEmployee);
+                 PreparedStatement insertCoopStmt = conn.prepareStatement(insertCooperation)) {
+
+                deleteCoopStmt.executeUpdate();
+                deleteEmpStmt.executeUpdate();
+
+                for (Employee employee : employees) {
+                    insertEmpStmt.setInt(1, employee.getId());
+                    insertEmpStmt.setString(2, employee.getFirstName());
+                    insertEmpStmt.setString(3, employee.getLastName());
+                    insertEmpStmt.setInt(4, employee.getBirthYear());
+                    insertEmpStmt.setString(5, employee.getGroupName());
+                    insertEmpStmt.executeUpdate();
+
+                    for (Cooperation cooperation : employee.getCooperations()) {
+                        insertCoopStmt.setInt(1, employee.getId());
+                        insertCoopStmt.setInt(2, cooperation.getColleagueId());
+                        insertCoopStmt.setString(3, cooperation.getLevel().name());
+                        insertCoopStmt.executeUpdate();
+                    }
+                }
+
+                conn.commit();
+                System.out.println("All data saved to SQL database.");
+            } catch (SQLException e) {
+                conn.rollback();
+                System.out.println("SQL save error: " + e.getMessage());
+            }
+        } catch (SQLException e) {
+            System.out.println("Database connection error: " + e.getMessage());
+        }
+    }
+
+    public boolean loadAllFromSQL() {
+        employees.clear();
+        nextId = 1;
+
+        String selectEmployees = "SELECT * FROM employees";
+        String selectCooperations = "SELECT * FROM cooperations";
+
+        Map<Integer, Employee> employeeMap = new HashMap<>();
+
+        try (Connection conn = DatabaseManager.connect();
+             PreparedStatement empStmt = conn.prepareStatement(selectEmployees);
+             PreparedStatement coopStmt = conn.prepareStatement(selectCooperations);
+             ResultSet empRs = empStmt.executeQuery();
+             ResultSet coopRs = coopStmt.executeQuery()) {
+
+            boolean hasAnyEmployee = false;
+
+            while (empRs.next()) {
+                hasAnyEmployee = true;
+
+                int id = empRs.getInt("id");
+                String firstName = empRs.getString("first_name");
+                String lastName = empRs.getString("last_name");
+                int birthYear = empRs.getInt("birth_year");
+                String groupName = empRs.getString("group_name");
+
+                Employee employee = null;
+
+                if (groupName.equals("DataAnalyst")) {
+                    employee = new DataAnalyst(id, firstName, lastName, birthYear);
+                } else if (groupName.equals("SecuritySpecialist")) {
+                    employee = new SecuritySpecialist(id, firstName, lastName, birthYear);
+                }
+
+                if (employee != null) {
+                    employees.add(employee);
+                    employeeMap.put(id, employee);
+
+                    if (id >= nextId) {
+                        nextId = id + 1;
+                    }
+                }
+            }
+
+            while (coopRs.next()) {
+                int employeeId = coopRs.getInt("employee_id");
+                int colleagueId = coopRs.getInt("colleague_id");
+                CooperationLevel level = CooperationLevel.valueOf(coopRs.getString("level"));
+
+                Employee employee = employeeMap.get(employeeId);
+                if (employee != null) {
+                    employee.addCooperation(colleagueId, level);
+                }
+            }
+
+            if (hasAnyEmployee) {
+                System.out.println("All data loaded from SQL database.");
+                return true;
+            } else {
+                System.out.println("SQL database is empty.");
+                return false;
+            }
+        } catch (SQLException e) {
+            System.out.println("SQL load error: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean isEmpty() {
+        return employees.isEmpty();
+    }
 }
